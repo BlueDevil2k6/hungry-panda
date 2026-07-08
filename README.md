@@ -1,79 +1,94 @@
 # 🐼 Hungry Panda
 
-A concept + interactive UI prototype for a **pan-Asian takeout ordering website**,
-built around **allergy-safe ordering**. Customers browse a menu by topic, tell the
-app what they're allergic to once, and every unsafe dish is flagged and locked out
-of the cart. Sign in with Google to reorder favourites, or check out as a guest;
-pay with Stripe. Owners get an admin console to set the menu, prices, descriptions
-and allergens, and to work a live order queue.
+A **pan-Asian takeout ordering web app**, built around **allergy-safe ordering**.
+Customers browse a menu by topic, tell the app what they're allergic to once, and
+every unsafe dish is flagged and locked out of the cart. Sign in with Google to
+reorder favourites, or check out as a guest; pay with Stripe. Owners get an admin
+console to set the menu, prices, descriptions and allergens, and to work a live
+order queue.
 
-> This repository is a **design deliverable**: a written concept/spec plus a
-> fully interactive, self-contained HTML prototype and rendered screenshots.
-> There is no backend yet — all data in the prototype is in-memory and
-> illustrative. The recommended path to a real build is in the spec (§13).
+The repo contains both the **product design** (concept, spec, interactive
+prototype, screenshots) and the **application** (a Next.js + TypeScript app that
+implements the spec).
 
----
+## Quick start
 
-## What's inside
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
+
+It runs with **zero configuration** in demo mode: in-memory data, a simulated
+Google sign-in, and instant (fake) payments — so the whole flow works offline.
+Fill in `.env.local` (see `.env.example`) to switch on real Google OAuth, Stripe
+and Supabase.
+
+Try it: set allergies (header pill) and watch dishes lock → add items → checkout
+→ order confirmed. Sign in with Google to reorder from history. Visit `/admin`
+for the staff console (dashboard, menu & pricing editor, order queue).
+
+```bash
+npm test             # domain unit tests (allergens, pricing, cart, orders)
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run build        # production build
+node tools/smoke.mjs # end-to-end smoke test (needs a running `npm start`)
+```
+
+## Architecture
+
+Recommended stack from the spec (§13): **Next.js (App Router) + TypeScript**,
+**Supabase (Postgres)** for data, **Google OAuth** for auth, **Stripe** for
+payments. Every integration has a demo-mode fallback so nothing is required to
+run locally.
+
+```
+src/
+  domain/       Pure, unit-tested core: allergen blocking, pricing,
+                server-side cart validation, order building.
+  data/         Store interface + in-memory implementation (seeded from the
+                prototype menu). Supabase is the documented production path.
+  auth/         Signed-cookie sessions (jose); admin allow-list.
+  payments/     Stripe helper (PaymentIntent) + demo-mode fallback.
+  app/api/      Route handlers: menu, session, auth, allergens, orders,
+                reorder, cart validation, admin item/order management.
+  app/(store)/  Storefront: home, menu, checkout, account, order confirmation.
+  app/admin/    Staff console: sign-in gate, dashboard, menu editor, queue.
+  components/   AppProvider (client state) + storefront/admin UI.
+supabase/       SQL schema + RLS for the production data layer.
+```
+
+**Safety is enforced on the server.** Allergen blocking, availability and pricing
+are always re-validated in `src/domain/cart.ts` at cart-validate and order-create
+time — the client UI is only a convenience (see `POST /api/orders`).
+
+### What's live vs. configured
+
+| Area | Default (no secrets) | With configuration |
+|---|---|---|
+| Data | In-memory store, seeded | Supabase Postgres (`supabase/`) |
+| Auth | Simulated Google sign-in | Google OIDC + staff allow-list |
+| Payments | Approved instantly (demo) | Stripe PaymentIntent + webhook |
+
+> Persistence is in-memory today (resets on restart); the Supabase schema and
+> the swap-in point are ready in `supabase/README.md`.
+
+## Design deliverables
+
+The original concept and design work live alongside the app:
 
 | Path | What it is |
 |---|---|
-| **[`mockups/index.html`](mockups/index.html)** | **The interactive prototype** — open it in any browser. One self-contained file (fonts embedded, no internet needed). |
-| **[`docs/concept-and-spec.md`](docs/concept-and-spec.md)** | Concept, feature requirements (MoSCoW), allergen model, data model, architecture, roadmap. |
-| **[`screenshots/`](screenshots/)** | 18 rendered PNGs of every screen (light, dark, and mobile). |
-| `mockups/index.template.html` | Source template (fonts injected at build). |
-| `tools/build-mockup.mjs` | Inlines the web fonts → `mockups/index.html`. |
-| `tools/screenshot.mjs` | Drives the prototype through each state and captures the PNGs. |
+| [`docs/concept-and-spec.md`](docs/concept-and-spec.md) | Concept, feature requirements, allergen model, data model, architecture, roadmap. |
+| [`mockups/index.html`](mockups/index.html) | Self-contained interactive prototype (open in any browser). |
+| [`screenshots/`](screenshots/) | 18 rendered PNGs of every screen (light, dark, mobile). |
+| `tools/` | Build/screenshot/smoke scripts. |
 
-## Try the interactive prototype
+## Design system
 
-Open **`mockups/index.html`** in a browser. Everything works:
-
-- **Set allergies** (header pill or the green "Set my allergies" button) →
-  watch dishes containing them turn red and lock — they can't be added.
-- **Add to cart**, adjust quantities, open the cart, go to **checkout**, and
-  **place an order** to see the confirmation + status tracker.
-- **Sign in with Google** (mocked) to load Priya's saved allergens and order
-  history, then **Reorder** a past order in one tap.
-- Use the **"Prototype screens"** pill at the bottom to jump to any screen,
-  toggle **light/dark**, or reset the demo.
-- Jump into the **Admin console** (Dashboard / Menu & pricing / Order queue).
-  Edit a dish's price, description or allergens, 86 an item, or advance an
-  order's status — changes reflect on the storefront.
-
-## Screens
-
-**Customer:** Home · Allergen-aware menu · Cart · Allergen picker · Google
-sign-in / guest · Checkout (Stripe) · Order confirmed · My account (history +
-reorder, allergens, profile).
-**Admin:** Staff sign-in · Dashboard · Menu & pricing · Order queue.
-
-<p>
-  <img src="screenshots/01-home.png" width="49%" alt="Home">
-  <img src="screenshots/02-menu-allergens.png" width="49%" alt="Menu with allergen blocking">
-</p>
-<p>
-  <img src="screenshots/07-checkout.png" width="49%" alt="Checkout">
-  <img src="screenshots/11-admin-dashboard.png" width="49%" alt="Admin dashboard">
-</p>
-
-## Regenerating the build & screenshots
-
-The committed `mockups/index.html` and `screenshots/` are ready to use. To
-rebuild them (e.g. after editing the template):
-
-```bash
-node tools/build-mockup.mjs     # rebuild the self-contained HTML
-node tools/screenshot.mjs       # re-render all screenshots (needs Playwright + Chromium)
-```
-
-## Design system (quick reference)
-
-- **Brand:** bamboo green `#2E7150` — the accent. Kept deliberately separate from
+- **Brand:** bamboo green `#2E7150` — the accent, kept deliberately separate from
   the semantic **allergen** colours so safety always reads clearly.
-- **Semantic signals:** chili red `#C1362F` = *blocked / contains your allergen*;
-  turmeric amber `#B5720E` = *caution*.
-- **Type:** Fraunces (display serif) + Figtree (UI), embedded as base64.
-- **Themes:** full light and dark support, following the OS or the in-app toggle.
-
-See the spec for the full concept, requirements and proposed architecture.
+- **Semantic signals:** chili red `#C1362F` = *blocked*; turmeric amber `#B5720E`
+  = *caution*.
+- **Type:** Fraunces (display serif) + Figtree (UI), self-hosted from `/public/fonts`.
+- **Themes:** full light and dark support (OS preference or in-app toggle).

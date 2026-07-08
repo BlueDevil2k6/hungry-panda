@@ -1,3 +1,14 @@
 node_modules/
 .DS_Store
 *.log
+
+# Next.js / app
+.next/
+out/
+build/
+coverage/
+.env
+.env*.local
+next-env.d.ts
+.vercel
+*.tsbuildinfo
