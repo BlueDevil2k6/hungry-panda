@@ -1449,6 +1449,7 @@
     _openCart:openCart, _openAllergens:openAllergens, _openSignin:openSignin, _editItem:editItem, _setAcctTab:setAcctTab
   };
 
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
