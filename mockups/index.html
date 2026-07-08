@@ -446,7 +446,9 @@
   .status.prep { background: #E5EAF6; color: #3457A8; }
   .status.ready { background: var(--brand-tint); color: var(--brand-ink); }
   .status.done { background: var(--surface-2); color: var(--ink-faint); }
-  :root[data-theme="dark"] .status.prep, @media (prefers-color-scheme: dark){ .status.prep{ background:#20304f; color:#9DB8EE; } }
+  @media (prefers-color-scheme: dark){ .status.prep{ background:#20304f; color:#9DB8EE; } }
+  :root[data-theme="dark"] .status.prep{ background:#20304f; color:#9DB8EE; }
+  :root[data-theme="light"] .status.prep{ background:#E5EAF6; color:#3457A8; }
 
   .tbl { width: 100%; border-collapse: collapse; }
   .tbl-scroll { overflow-x: auto; }

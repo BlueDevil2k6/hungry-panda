@@ -136,17 +136,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   const isBlk = useCallback((it: MenuItem) => isBlocked(it, avoided), [avoided]);
   const hits = useCallback((it: MenuItem) => allergenHits(it, avoided), [avoided]);
+  // Only orderable lines are shown/counted: items that exist, are available
+  // and aren't blocked by the current allergens. Derived (not pruned in an
+  // effect) so a blocked item reappears if the allergen is removed.
   const cartLines = useMemo(
     () =>
       Object.entries(cart)
         .map(([id, q]) => ({ item: itemsById[id], quantity: q }))
-        .filter((l) => l.item),
-    [cart, itemsById],
+        .filter((l) => l.item && l.item.available && !isBlocked(l.item, avoided)),
+    [cart, itemsById, avoided],
   );
   const totals = useMemo(() => computeTotals(cartLines), [cartLines]);
   const cartCount = useMemo(
-    () => Object.values(cart).reduce((a, b) => a + b, 0),
-    [cart],
+    () => cartLines.reduce((a, l) => a + l.quantity, 0),
+    [cartLines],
   );
   const blockedCount = useMemo(() => items.filter(isBlk).length, [items, isBlk]);
 
@@ -156,23 +159,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const t = setTimeout(() => setToastMsg(null), 2200);
     return () => clearTimeout(t);
   }, [toastMsg]);
-
-  // Prune anything blocked/unavailable from the cart whenever allergens change.
-  useEffect(() => {
-    if (!ready) return;
-    setCart((c) => {
-      let changed = false;
-      const n = { ...c };
-      for (const id of Object.keys(n)) {
-        const it = itemsById[id];
-        if (!it || !it.available || isBlocked(it, avoided)) {
-          delete n[id];
-          changed = true;
-        }
-      }
-      return changed ? n : c;
-    });
-  }, [avoided, itemsById, ready]);
 
   const add = useCallback(
     (id: string) => {
@@ -269,9 +255,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const placeOrder = useCallback(
     async (input: PlaceOrderInput): Promise<Order | null> => {
-      const lines = Object.entries(cart).map(([itemId, quantity]) => ({
-        itemId,
-        quantity,
+      const lines = cartLines.map((l) => ({
+        itemId: l.item.id,
+        quantity: l.quantity,
       }));
       const r = await fetch("/api/orders", {
         method: "POST",
@@ -287,7 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCart({});
       return order as Order;
     },
-    [cart, avoided, showToast],
+    [cartLines, avoided, showToast],
   );
 
   const value: Ctx = {
